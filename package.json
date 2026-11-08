@@ -1,0 +1,39 @@
+{
+  "name": "loglytics",
+  "version": "0.1.0",
+  "description": "Cookieless web analytics with no server and no database: a 1 KB snippet, your web server's access log and a static HTML report.",
+  "type": "module",
+  "bin": {
+    "loglytics": "bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "client"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "demo": "node scripts/demo.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "analytics",
+    "privacy",
+    "cookieless",
+    "gdpr",
+    "access-log",
+    "caddy",
+    "nginx",
+    "static-site",
+    "events",
+    "funnels"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DemboNauta/simple-analytics.git"
+  },
+  "homepage": "https://github.com/DemboNauta/simple-analytics#readme"
+}

@@ -1,0 +1,6 @@
+{
+  "title": "Test site",
+  "funnels": [
+    { "name": "Lesson to passed test", "steps": ["/", "/curso/*", { "event": "test_done", "props": { "result": "pass" }, "label": "Test passed" }] }
+  ]
+}

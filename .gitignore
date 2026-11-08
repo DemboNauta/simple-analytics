@@ -1,0 +1,6 @@
+node_modules/
+demo/
+stats.html
+events.log
+*.log
+!test/fixtures/*.log
