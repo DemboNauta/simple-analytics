@@ -164,7 +164,12 @@ export function aggregate(records, options = {}) {
   }
 
   const funnels = (config.funnels || []).map((f) => {
-    const steps = (f.steps || []).map(compileStep);
+    const steps = (f.steps || []).map((st) => {
+      const c = compileStep(st);
+      const ev = typeof st === 'string' ? (st.startsWith('/') ? null : st) : st.event;
+      if (ev && !st.label && config.events && config.events[ev] && config.events[ev].label) c.label = config.events[ev].label;
+      return c;
+    });
     const reached = new Array(steps.length).fill(0);
     for (const v of visits.values()) {
       let i = 0;
@@ -177,6 +182,8 @@ export function aggregate(records, options = {}) {
   });
 
   const visitors = dayList.reduce((n, d) => n + d.visitors, 0);
+  const catalog = config.events || null;
+  const described = (name) => (catalog && catalog[name]) || {};
   return {
     generatedAt: new Date().toISOString(),
     range: { from: dayList[0]?.date || null, to: dayList[dayList.length - 1]?.date || null },
@@ -187,10 +194,23 @@ export function aggregate(records, options = {}) {
     screens: sortedEntries(screens).map(([screen, n]) => ({ screen, visitors: n })),
     events: sortedEntries(events, (e) => e.count).map(([name, e]) => ({
       name,
+      label: described(name).label || '',
+      description: described(name).description || '',
+      declared: !catalog || !!catalog[name],
       count: e.count,
       visitors: e.visitors.size,
-      props: [...e.props.entries()].map(([key, vals]) => ({ key, values: sortedEntries(vals).map(([value, count]) => ({ value, count })) })),
+      props: [...e.props.entries()].map(([key, vals]) => ({
+        key,
+        description: (described(name).props || {})[key] || '',
+        values: sortedEntries(vals).map(([value, count]) => ({ value, count })),
+      })),
     })),
+    // Only with an "events" catalog in the config: names that arrived without being declared
+    // (typos, forgotten entries) and declared ones that never arrived (broken or unused code).
+    catalog: catalog ? {
+      undeclared: [...events.keys()].filter((k) => !catalog[k]).sort(),
+      unused: Object.keys(catalog).filter((k) => !events.has(k)).sort(),
+    } : null,
     funnels,
   };
 }

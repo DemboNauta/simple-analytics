@@ -41,7 +41,7 @@ function checkExpected(data) {
   assert.equal(test.count, 2);
   assert.equal(test.visitors, 2);
   assert.deepEqual(test.props.find((p) => p.key === 'result').values, [{ value: 'fail', count: 1 }, { value: 'pass', count: 1 }]);
-  assert.deepEqual(data.events.find((e) => e.name === 'question_wrong').props, [{ key: 'question', values: [{ value: 'q7', count: 1 }] }]);
+  assert.deepEqual(data.events.find((e) => e.name === 'question_wrong').props, [{ key: 'question', description: '', values: [{ value: 'q7', count: 1 }] }]);
   assert.deepEqual(data.funnels, [{
     name: 'Lesson to passed test',
     steps: [{ label: '/', visitors: 2 }, { label: '/curso/*', visitors: 1 }, { label: 'Test passed', visitors: 1 }],
@@ -129,6 +129,26 @@ test('HTML report is self-contained and escaped', async () => {
   assert.ok(!/<script|<link|src="http|href="http/.test(html));
   assert.match(html, /Lesson to passed test/);
   assert.match(html, /question_wrong/);
+});
+
+test('events catalog: labels, descriptions and mismatches', async () => {
+  const withCatalog = {
+    ...config,
+    events: {
+      test_done: { label: 'Test finished', description: 'End of a test', props: { result: 'pass or fail' } },
+      never_sent: { label: 'Never' },
+    },
+  };
+  const data = await run(fx('caddy.log'), { config: withCatalog });
+  const e = data.events.find((x) => x.name === 'test_done');
+  assert.equal(e.label, 'Test finished');
+  assert.equal(e.props.find((p) => p.key === 'result').description, 'pass or fail');
+  assert.deepEqual(data.catalog, { undeclared: ['lesson_done', 'question_wrong'], unused: ['never_sent'] });
+  const html = renderHtml(data, { lang: 'en' });
+  assert.match(html, /Test finished/);
+  assert.match(html, /never_sent/);
+  assert.match(html, /not in catalog/);
+  assert.equal((await run(fx('caddy.log'))).catalog, null);
 });
 
 test('empty input renders a "no data" page', () => {

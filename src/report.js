@@ -8,7 +8,8 @@ const I18N = {
     noData: 'No data in this range.', generated: 'Generated', bots: 'bot hits ignored', date: 'Date',
     visitorsNote: 'Visitors are counted per day (no cookies), so a person who comes back on two days counts twice.',
     tableView: 'Show as table', value: 'Value', unknown: 'unknown', phone: 'phone', tablet: 'tablet', laptop: 'laptop', desktop: 'desktop',
-    noEvents: 'No custom events yet. Call m("name", { key: "value" }) on your site.',
+    noEvents: 'No custom events yet. Call track("name", { key: "value" }) or add data-track="name" to a button.',
+    undeclared: 'Not in the events catalog (typo or missing entry)', unused: 'In the catalog but never received', notDeclared: 'not in catalog',
   },
   es: {
     title: 'Analítica', visitors: 'Visitantes', pageviews: 'Páginas vistas', perVisitor: 'Páginas por visitante', events: 'Eventos',
@@ -17,7 +18,8 @@ const I18N = {
     noData: 'No hay datos en este periodo.', generated: 'Generado', bots: 'visitas de bots ignoradas', date: 'Fecha',
     visitorsNote: 'Los visitantes se cuentan por día (sin cookies): quien vuelve dos días distintos cuenta dos veces.',
     tableView: 'Ver como tabla', value: 'Valor', unknown: 'desconocida', phone: 'móvil', tablet: 'tableta', laptop: 'portátil', desktop: 'escritorio',
-    noEvents: 'Aún no hay eventos propios. Llama a m("nombre", { clave: "valor" }) en tu web.',
+    noEvents: 'Aún no hay eventos propios. Llama a track("nombre", { clave: "valor" }) o pon data-track="nombre" en un botón.',
+    undeclared: 'No están en el catálogo de eventos (errata o falta declararlos)', unused: 'Están en el catálogo pero no ha llegado ninguno', notDeclared: 'fuera del catálogo',
   },
 };
 
@@ -94,10 +96,17 @@ export function renderHtml(data, { lang = 'en', title } = {}) {
 
   const events = data.events.length
     ? data.events.map((e) => {
-      const props = e.props.map((p) => `<h4>${esc(p.key)}</h4>${barTable(p.values, { head: [t.value, t.count], label: (r) => esc(r.value), value: (r) => r.count, lang, limit: 20 })}`).join('');
-      return `<div class="event"><h3><code>${esc(e.name)}</code> <span class="muted">${n(e.count)} · ${n(e.visitors)} ${esc(t.visitors.toLowerCase())}</span></h3>${props}</div>`;
+      const props = e.props.map((p) => `<h4>${esc(p.key)}${p.description ? ` <span class="muted">· ${esc(p.description)}</span>` : ''}</h4>${barTable(p.values, { head: [t.value, t.count], label: (r) => esc(r.value), value: (r) => r.count, lang, limit: 20 })}`).join('');
+      const name = e.label ? `${esc(e.label)} <code class="muted">${esc(e.name)}</code>` : `<code>${esc(e.name)}</code>`;
+      const warn = e.declared ? '' : ` <span class="warn">${esc(t.notDeclared)}</span>`;
+      const desc = e.description ? `<p class="muted">${esc(e.description)}</p>` : '';
+      return `<div class="event"><h3>${name}${warn} <span class="muted">${n(e.count)} · ${n(e.visitors)} ${esc(t.visitors.toLowerCase())}</span></h3>${desc}${props}</div>`;
     }).join('')
     : `<p class="muted">${esc(t.noEvents)}</p>`;
+  const cat = data.catalog;
+  const catalogNote = cat && (cat.undeclared.length || cat.unused.length)
+    ? `<div class="note">${cat.undeclared.length ? `<p><b>${esc(t.undeclared)}:</b> ${cat.undeclared.map((x) => `<code>${esc(x)}</code>`).join(', ')}</p>` : ''}${cat.unused.length ? `<p><b>${esc(t.unused)}:</b> ${cat.unused.map((x) => `<code>${esc(x)}</code>`).join(', ')}</p>` : ''}</div>`
+    : '';
 
   const funnels = data.funnels.map((f) => {
     const first = f.steps[0]?.visitors || 0;
@@ -118,8 +127,8 @@ export function renderHtml(data, { lang = 'en', title } = {}) {
 <meta name="robots" content="noindex">
 <title>${esc(pageTitle)}</title>
 <style>
-:root{color-scheme:light;--bg:#fcfcfb;--card:#ffffff;--line:#e6e5e1;--ink:#0b0b0b;--ink2:#52514e;--muted:#7a7974;--accent:#2a78d6;--accent-soft:#2a78d61f}
-@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121211;--card:#1a1a19;--line:#2e2d2b;--ink:#f0efec;--ink2:#c3c2b7;--muted:#8f8e86;--accent:#3987e5;--accent-soft:#3987e533}}
+:root{color-scheme:light;--bg:#fcfcfb;--card:#ffffff;--line:#e6e5e1;--ink:#0b0b0b;--ink2:#52514e;--muted:#7a7974;--accent:#2a78d6;--accent-soft:#2a78d61f;--warn:#a35a00;--warn-soft:#e8890c1a}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#121211;--card:#1a1a19;--line:#2e2d2b;--ink:#f0efec;--ink2:#c3c2b7;--muted:#8f8e86;--accent:#3987e5;--accent-soft:#3987e533;--warn:#f0a43a;--warn-soft:#f0a43a1f}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1040px;margin:0 auto;padding:24px 16px 48px}
@@ -155,6 +164,9 @@ details{margin-top:8px}
 summary{cursor:pointer;color:var(--ink2);font-size:13px}
 code{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 footer{margin-top:24px;color:var(--muted);font-size:12px}
+.warn{font-size:12px;font-weight:500;color:var(--warn);border:1px solid currentColor;border-radius:4px;padding:0 5px}
+.note{border-left:3px solid var(--warn);padding:2px 12px;margin:0 0 12px;background:var(--warn-soft);border-radius:0 6px 6px 0}
+.note p{margin:6px 0}
 </style>
 </head>
 <body>
@@ -167,7 +179,7 @@ ${empty ? `<div class="card"><p>${esc(t.noData)}</p></div>` : `
 <section class="card"><h2>${esc(t.pages)}</h2>${pages}</section>
 <section class="card"><h2>${esc(t.sources)}</h2>${sources}<h2 style="margin-top:20px">${esc(t.screens)}</h2>${screens}</section>
 </div>
-<section class="card"><h2>${esc(t.events)}</h2>${events}</section>
+<section class="card"><h2>${esc(t.events)}</h2>${catalogNote}${events}</section>
 ${funnels ? `<section class="card"><h2>${esc(t.funnels)}</h2>${funnels}</section>` : ''}`}
 <footer>${esc(t.generated)} ${esc(data.generatedAt.slice(0, 16).replace('T', ' '))} UTC · ${n(totals.bots)} ${esc(t.bots)}</footer>
 </main>
