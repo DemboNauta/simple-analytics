@@ -91,7 +91,9 @@ export function init({ server, site = 'example.com', log, name = 'loglytics', wr
   lines.push(`npx ${name} snippet > public/m.js`, '', '<script src="/m.js" defer></script>', '');
   lines.push(`## 2. ${server === 'caddy' ? 'Caddyfile' : 'nginx'}`, '');
   lines.push(server === 'caddy' ? caddyBlock(site, log) : nginxBlock(log), '');
-  lines.push(server === 'caddy' ? 'Then: caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy' : 'Then: nginx -t && systemctl reload nginx', '');
+  lines.push(server === 'caddy' ? `Then (create the log as the caddy user first, or Caddy cannot open it):
+  install -o caddy -g caddy -m 640 /dev/null ${log}
+  caddy validate --config /etc/caddy/Caddyfile && systemctl reload caddy` : 'Then: nginx -t && systemctl reload nginx', '');
   lines.push('## 3. The report, every hour (crontab -e)', '');
   lines.push(`0 * * * * cd /path/with/analytics.config.json && npx ${name} report ${log}* -o /var/www/stats/index.html`, '');
   lines.push('## 4. Events', '');

@@ -154,8 +154,15 @@ example.com {
 }
 ```
 
-The log can hold all requests: `report` only reads the `/e` lines. Run `caddy validate`
-before reloading. Even if a log has full IPs, `report` truncates them before using them.
+The log can hold all requests: `report` only reads the `/e` lines.
+
+**Create the log file as the `caddy` user before validating.** `caddy validate` run as root
+creates it owned by root, and then the running Caddy cannot open it and refuses the new config:
+
+```bash
+sudo install -o caddy -g caddy -m 640 /dev/null /var/log/caddy/example.log
+sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+``` Even if a log has full IPs, `report` truncates them before using them.
 
 ## nginx
 
