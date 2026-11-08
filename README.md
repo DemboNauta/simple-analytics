@@ -1,7 +1,7 @@
 # loglytics
 
-Cookieless web analytics with **no server and no database**: a 1 KB script, your web
-server's access log and a static HTML report.
+Cookieless web analytics with **no server and no database**: a 1 KB script (gzipped), your
+web server's access log and a static HTML report.
 
 - **Nothing to run.** Your web server (Caddy, nginx…) already writes logs. The script sends
   a tiny request to `/e`, the server answers `204` and logs it. A command turns the log into
@@ -9,8 +9,12 @@ server's access log and a static HTML report.
 - **Private by design.** No cookies, no `localStorage`, no fingerprinting. IPs are truncated
   (IPv4 /24, IPv6 /48) and only used, together with the user agent and a random salt that
   is never stored, to count daily visitors. No consent banner needed for that.
-- **Events and funnels.** `m('signup', { plan: 'pro' })`, then see counts per prop value
-  and step-by-step conversion.
+- **Events without JavaScript.** `<button data-track="signup_clicked" data-track-plan="pro">`,
+  or `track('signup_clicked', { plan: 'pro' })` from code. Counts per prop value and funnels.
+- **An events catalog** in the config gives events readable names, and `loglytics check`
+  compares your code with it: no typos, no forgotten events.
+- **Made for AI agents too.** [AGENTS.md](AGENTS.md) and [llms.txt](llms.txt) tell coding
+  agents exactly how to install it and add events.
 - **Works with single-page apps.** Page views are tracked on `history.pushState` and back/forward.
 - **Zero dependencies.** Node 18+.
 
@@ -19,7 +23,17 @@ server's access log and a static HTML report.
 
 ## Quickstart
 
-**1. Add the script** to every page:
+**1. Get your setup:**
+
+```bash
+npx loglytics init --site example.com
+```
+
+It detects Caddy or nginx and prints the exact server block, script tag and cron line, and
+writes a starter `analytics.config.json`.
+
+**2. Add the script** to every page and **the block** to your web server (also below:
+[Caddy](#caddy), [nginx](#nginx)):
 
 ```bash
 npx loglytics snippet > public/m.js
@@ -28,8 +42,6 @@ npx loglytics snippet > public/m.js
 ```html
 <script src="/m.js" defer></script>
 ```
-
-**2. Answer and log `/e`** in your web server (see [Caddy](#caddy) or [nginx](#nginx)).
 
 **3. Build the report**, by hand or from cron:
 
@@ -43,7 +55,8 @@ Try it without a site: `npm run demo` writes `demo/stats.html` from 30 days of f
 
 ## The script
 
-`m.js` (1 KB, ~660 bytes gzipped) sends one request per page view:
+`m.js` (2 KB, 1 KB gzipped; readable source in [client/m.src.js](client/m.src.js)) sends one
+request per page view:
 
 | Param | Meaning |
 |---|---|
@@ -52,16 +65,47 @@ Try it without a site: `npm run demo` writes `demo/stats.html` from 30 days of f
 | `w` | viewport width rounded to 50 px |
 | `n`, `d` | event name and JSON props, for custom events |
 
-Custom events:
+## Events
+
+**1. Declare them** in `analytics.config.json`. The report shows the labels and
+descriptions, and warns about events that are not declared or never arrive:
+
+```json
+"events": {
+  "signup_clicked": {
+    "label": "Signup button",
+    "props": { "plan": "free or pro", "place": "header, pricing…" }
+  },
+  "test_passed": { "label": "Test passed", "props": { "topic": "", "score": "out of 10" } }
+}
+```
+
+**2. Send them.** Clicks, straight from the HTML:
+
+```html
+<button data-track="signup_clicked" data-track-plan="pro" data-track-place="pricing">Sign up</button>
+```
+
+`data-track-some-key` becomes the prop `someKey`. It works on elements added later too. From code:
 
 ```js
-m('test_done', { topic: 'brakes', result: 'pass' });
+track('test_passed', { topic: 'brakes', score: 9 });
 ```
+
+**3. Check** that code and catalog agree. It lists every event it finds, with file and line,
+and prints the missing catalog entries ready to paste:
+
+```bash
+npx loglytics check src/
+```
+
+Name events `object_action` in the past tense (`signup_clicked`, `test_passed`) and put the
+variants in props. No personal data in props. `m()` is a short alias of `track()`.
 
 Calls made before the script loads are queued if you define the stub first:
 
 ```html
-<script>window.m = window.m || function () { (m.q = m.q || []).push(arguments) }</script>
+<script>window.track = window.track || function () { (track.q = track.q || []).push(arguments) }</script>
 ```
 
 Options, as `data-` attributes on the script tag:
@@ -188,6 +232,7 @@ Pass several files or a directory: rotated and `.gz` logs are read together.
   "lang": "en",
   "timezone": "Europe/Madrid",
   "exclude": ["/admin*"],
+  "events": { "signup": { "label": "Signup", "props": { "plan": "free or pro" } } },
   "funnels": [
     {
       "name": "Docs to signup",
@@ -213,6 +258,17 @@ Visitors are counted per day: someone who comes back on two days counts twice. T
 the price of not identifying anybody.
 
 Don't send personal data (emails, names) in event props.
+
+## For AI coding agents
+
+Point your agent at [AGENTS.md](AGENTS.md): it says how to install loglytics, how to name and
+declare events, and to finish with `loglytics check`. A prompt like "add loglytics to this
+site and track how many people pass the test" is enough.
+
+## Development
+
+`npm test` runs the tests. Edit `client/m.src.js` and run `npm run build` to regenerate
+`client/m.js` (a test fails if you forget).
 
 ## License
 

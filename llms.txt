@@ -1,0 +1,16 @@
+# loglytics
+
+> Cookieless web analytics with no server and no database. A small script sends beacons to /e, the site's own web server (Caddy or nginx) answers 204 and logs them, and a CLI turns the access log into a static HTML report with visitors, pages, sources, custom events and funnels.
+
+- Setup: `npx loglytics init --site example.com` prints the web server block, the script tag and a cron line, and writes analytics.config.json. Script: `npx loglytics snippet > public/m.js` and `<script src="/m.js" defer></script>`.
+- Page views (including single-page app navigation) are automatic.
+- Events: declare them in "events" in analytics.config.json, then send them with `<button data-track="signup_clicked" data-track-plan="pro">` or `track('signup_clicked', { plan: 'pro' })`. Check with `npx loglytics check src/`.
+- Names: snake_case object_action in the past tense (signup_clicked, test_passed). Variants go in props. No personal data in props.
+- Report: `npx loglytics report /var/log/caddy/site.log -o stats.html` (or .json).
+- Privacy: no cookies or storage on the device; IPs truncated (/24, /48); daily visitor counts from a salted hash that is never stored.
+- Not on npm yet: use `npx github:DemboNauta/simple-analytics` in place of `npx loglytics`.
+
+## Docs
+
+- [README](https://github.com/DemboNauta/simple-analytics/blob/main/README.md): setup for Caddy, nginx and hosts without logs, all options
+- [AGENTS.md](https://github.com/DemboNauta/simple-analytics/blob/main/AGENTS.md): step-by-step rules for coding agents adding analytics and events
