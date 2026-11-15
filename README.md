@@ -116,6 +116,9 @@ Options, as `data-` attributes on the script tag:
 Visitors with Do Not Track or Global Privacy Control enabled, and automated browsers
 (`navigator.webdriver`), are not tracked.
 
+To leave your own visits out, open any page of your site once with `?loglytics=off` in each
+browser you use (it is remembered in that browser's localStorage). `?loglytics=on` undoes it.
+
 ## Caddy
 
 Inside your site block:

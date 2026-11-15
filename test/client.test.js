@@ -12,12 +12,17 @@ test('client/m.js is up to date (run npm run build)', () => {
 });
 
 // Runs the script against a tiny fake browser and returns the beacon URLs it sends.
-function browser({ path = '/', referrer = '', stub = null } = {}) {
+function browser({ path = '/', referrer = '', stub = null, search = '', storage = {} } = {}) {
   const sent = [];
   const listeners = {};
-  const loc = { pathname: path, hostname: 'example.com', search: '' };
+  const loc = { pathname: path, hostname: 'example.com', search };
   const win = {
     innerWidth: 1280,
+    localStorage: {
+      getItem: (k) => (k in storage ? storage[k] : null),
+      setItem: (k, v) => { storage[k] = String(v); },
+      removeItem: (k) => { delete storage[k]; },
+    },
     addEventListener: (t, f) => { listeners['w:' + t] = f; },
   };
   const doc = {
@@ -75,4 +80,12 @@ test('calls queued before the script loaded are sent', () => {
   stub.q = [['early_event', { a: 1 }]];
   const b = browser({ stub });
   assert.equal(params(b.sent[1]).n, 'early_event');
+});
+
+test('?loglytics=off stops tracking in this browser and ?loglytics=on resumes it', () => {
+  const storage = {};
+  assert.equal(browser({ search: '?loglytics=off', storage }).sent.length, 0);
+  assert.equal(browser({ storage }).sent.length, 0);
+  assert.equal(browser({ search: '?loglytics=on', storage }).sent.length, 1);
+  assert.equal(browser({ storage }).sent.length, 1);
 });

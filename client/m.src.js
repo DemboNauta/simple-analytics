@@ -10,12 +10,20 @@
   var script = d.currentScript, opts = (script && script.dataset) || {};
   var api = opts.api || (script && script.src ? new URL(script.src).origin : '') + '/e';
   var queued = [].concat((w.track && w.track.q) || [], (w.m && w.m.q) || []);
-  var firstView = 1, lastPath, pushState = hist.pushState;
+  var firstView = 1, lastPath, pushState = hist.pushState, ignored;
+
+  // Opt-out for the site owner: visit any page once with ?loglytics=off (?loglytics=on undoes it).
+  try {
+    var flag = new URLSearchParams(loc.search).get('loglytics'), ls = w.localStorage;
+    if (flag == 'off') ls.setItem('loglytics_ignore', '1');
+    if (flag == 'on') ls.removeItem('loglytics_ignore');
+    ignored = ls.getItem('loglytics_ignore');
+  } catch (_) {}
 
   function bare(host) { return host.replace(/^www\./, ''); }
 
   function send(name, props) {
-    if (nav.doNotTrack == '1' || nav.globalPrivacyControl || nav.webdriver) return;
+    if (ignored || nav.doNotTrack == '1' || nav.globalPrivacyControl || nav.webdriver) return;
     if (opts.localhost == null && /^(localhost|127\.|\[::1\]$)/.test(loc.hostname)) return;
     var ref = '', url;
     if (!name && firstView) {
